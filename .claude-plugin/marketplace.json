@@ -12,7 +12,7 @@
       "name": "claude-code-sheduler",
       "description": "Time-based reminders for Claude Code agents with Telegram delivery via cron + claude -p",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "skills": [
         "./skills/reminders"
       ]

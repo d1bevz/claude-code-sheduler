@@ -11,9 +11,10 @@ Manage time-based reminders that are delivered via Telegram by running `claude -
 
 - **DB helper:** `${CLAUDE_PLUGIN_ROOT}/scripts/db.py`
 - **Runner:** `${CLAUDE_PLUGIN_ROOT}/scripts/run.sh`
-- **Data dir:** Read from the project's `.claude/claude-code-sheduler.local.md` frontmatter field `data_dir`, or default to `~/.config/claude-reminders`
-- **Default timezone:** Read from `.claude/claude-code-sheduler.local.md` frontmatter field `default_timezone`, or default to `UTC`
-- **Default model:** Read from `.claude/claude-code-sheduler.local.md` frontmatter field `default_model`, or default to `haiku`
+- **Data dir:** `~/.config/claude-reminders`
+- **Config file:** `~/.config/claude-reminders/config.md` (YAML frontmatter with `default_timezone` and `default_model` fields). If missing, use defaults.
+- **Default timezone:** Read from config file field `default_timezone`, or default to `UTC`
+- **Default model:** Read from config file field `default_model`, or default to `haiku`
 
 ## Create Reminder
 
