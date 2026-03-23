@@ -1,0 +1,10 @@
+{
+  "name": "claude-code-sheduler",
+  "description": "Time-based reminders for Claude Code agents with Telegram delivery via cron + claude -p",
+  "version": "0.1.0",
+  "author": "d1bevz",
+  "repository": "https://github.com/d1bevz/claude-code-sheduler",
+  "license": "MIT",
+  "skills": ["skills/reminders"],
+  "hooks": {}
+}
