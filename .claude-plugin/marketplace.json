@@ -1,0 +1,21 @@
+{
+  "name": "claude-code-sheduler",
+  "owner": {
+    "name": "d1bevz"
+  },
+  "metadata": {
+    "description": "Time-based reminders for Claude Code agents",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-code-sheduler",
+      "description": "Time-based reminders for Claude Code agents with Telegram delivery via cron + claude -p",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/reminders"
+      ]
+    }
+  ]
+}
