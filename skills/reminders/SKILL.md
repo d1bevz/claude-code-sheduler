@@ -79,9 +79,9 @@ TASK_ID=$(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/db.py insert \
 
 ```bash
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
-DATA_DIR="<data_dir from config>"
+DATA_DIR="$HOME/.config/claude-reminders"
 (flock -w 5 200 && {
-    (crontab -l 2>/dev/null; echo "<cron_expression> REMINDERS_DATA_DIR=$DATA_DIR $PLUGIN_ROOT/scripts/run.sh $TASK_ID >> $DATA_DIR/logs/cron.log 2>&1 # reminder:$TASK_ID") | crontab -
+    (crontab -l 2>/dev/null; echo "<cron_expression> REMINDERS_DATA_DIR=\"$DATA_DIR\" \"$PLUGIN_ROOT/scripts/run.sh\" \"$TASK_ID\" >> \"$DATA_DIR/logs/cron.log\" 2>&1 # reminder:$TASK_ID") | crontab -
 }) 200>"$DATA_DIR/.lock"
 ```
 

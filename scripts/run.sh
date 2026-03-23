@@ -12,10 +12,16 @@ TASK_ID="${1:?Usage: run.sh <task_id>}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Load config
+# Load config (safe parsing, no source)
 REMINDERS_DATA_DIR="${REMINDERS_DATA_DIR:-$HOME/.config/claude-reminders}"
 if [ -f "$REMINDERS_DATA_DIR/.env" ]; then
-    source "$REMINDERS_DATA_DIR/.env"
+    while IFS='=' read -r key value; do
+        key=$(echo "$key" | tr -d '[:space:]')
+        value=$(echo "$value" | sed 's/^["'\''"]//;s/["'\''"]$//' | tr -d '[:space:]')
+        case "$key" in
+            REMINDERS_CHAT_ID|REMINDERS_*) export "$key=$value" ;;
+        esac
+    done < <(grep -E '^[A-Z_]+=.+' "$REMINDERS_DATA_DIR/.env")
 fi
 
 CHAT_ID="${REMINDERS_CHAT_ID:?REMINDERS_CHAT_ID not set}"
@@ -43,21 +49,34 @@ MODEL=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.std
 WORKSPACE=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['workspace'])")
 IS_RECURRING=$(echo "$TASK_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['is_recurring'])")
 
-# Resolve bot token from workspace
-BOT_TOKEN=""
-if [ -f "$WORKSPACE/.claude/channels/telegram/.env" ]; then
-    BOT_TOKEN=$(grep -oP 'TELEGRAM_BOT_TOKEN="\K[^"]+' "$WORKSPACE/.claude/channels/telegram/.env" 2>/dev/null || \
-                grep -oP 'TELEGRAM_BOT_TOKEN=\K.+' "$WORKSPACE/.claude/channels/telegram/.env" 2>/dev/null || true)
+# Validate workspace path
+WORKSPACE=$(realpath -e "$WORKSPACE" 2>/dev/null) || {
+    log "ERROR: workspace path does not exist: $WORKSPACE"
+    exit 1
+}
+if [[ "$WORKSPACE" != "$HOME"* ]]; then
+    log "ERROR: workspace outside home directory: $WORKSPACE"
+    exit 1
 fi
-if [ -z "$BOT_TOKEN" ] && [ -f "$HOME/.claude/channels/telegram/.env" ]; then
-    BOT_TOKEN=$(grep -oP 'TELEGRAM_BOT_TOKEN="\K[^"]+' "$HOME/.claude/channels/telegram/.env" 2>/dev/null || \
-                grep -oP 'TELEGRAM_BOT_TOKEN=\K.+' "$HOME/.claude/channels/telegram/.env" 2>/dev/null || true)
-fi
-if [ -z "$BOT_TOKEN" ]; then
+
+# Resolve bot token from workspace (stored in file, read on demand to avoid process list exposure)
+BOT_TOKEN_FILE=""
+for candidate in "$WORKSPACE/.claude/channels/telegram/.env" "$HOME/.claude/channels/telegram/.env"; do
+    if [ -f "$candidate" ] && grep -qP 'TELEGRAM_BOT_TOKEN=' "$candidate" 2>/dev/null; then
+        BOT_TOKEN_FILE="$candidate"
+        break
+    fi
+done
+if [ -z "$BOT_TOKEN_FILE" ]; then
     log "ERROR: no bot token found"
     python3 "$SCRIPT_DIR/db.py" log "$TASK_ID" --status error --output "Bot token not found" --duration 0
     exit 3
 fi
+
+read_bot_token() {
+    grep -oP 'TELEGRAM_BOT_TOKEN="\K[^"]+' "$BOT_TOKEN_FILE" 2>/dev/null || \
+    grep -oP 'TELEGRAM_BOT_TOKEN=\K.+' "$BOT_TOKEN_FILE" 2>/dev/null
+}
 
 # Run claude -p from workspace
 log "EXEC: model=$MODEL workspace=$WORKSPACE"
@@ -79,8 +98,13 @@ FULL_RESULT="$RESULT"
 send_message() {
     local text="$1"
     local payload
-    payload=$(python3 -c "import json,sys; print(json.dumps({'chat_id': '$CHAT_ID', 'text': sys.stdin.read()}))" <<< "$text")
-    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+    payload=$(python3 -c "
+import json, sys, os
+print(json.dumps({'chat_id': os.environ['REMINDERS_CHAT_ID'], 'text': sys.stdin.read()}))
+" <<< "$text")
+    local token
+    token=$(read_bot_token)
+    curl -s -X POST "https://api.telegram.org/bot${token}/sendMessage" \
         -H "Content-Type: application/json" \
         -d "$payload" 2>/dev/null
 }
@@ -110,7 +134,7 @@ fi
 # One-off cleanup
 if [ "$IS_RECURRING" = "0" ]; then
     log "ONE-OFF: removing from crontab and marking completed"
-    flock "$REMINDERS_DATA_DIR/.lock" bash -c "crontab -l 2>/dev/null | grep -v '# reminder:${TASK_ID}$' | crontab -"
+    flock "$REMINDERS_DATA_DIR/.lock" bash -c "crontab -l 2>/dev/null | grep -vF '# reminder:$1' | crontab -" -- "$TASK_ID"
     python3 "$SCRIPT_DIR/db.py" complete "$TASK_ID"
 fi
 
