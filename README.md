@@ -157,10 +157,9 @@ When a reminder fires:
 
 1. **Cron triggers:** System cron runs `run.sh <task_id>` at the scheduled time
 2. **Context is loaded:** `run.sh` loads task details from SQLite and your Telegram config
-3. **Claude runs:** From your workspace, `claude -p` executes with full context:
+3. **Claude runs:** From your workspace, `claude -p` executes with workspace context:
    - Your `CLAUDE.md` and project instructions
-   - All installed skills
-   - MCP tools (if configured)
+   - All installed skills and MCP tools
 4. **Result is sent:** Output is split into 4096-char chunks and sent via Telegram API
 5. **Logged:** Execution time, status, and output are recorded in the SQLite database and daily logs
 

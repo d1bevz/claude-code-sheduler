@@ -31,7 +31,21 @@ Extract from the user's message:
 
 ### Step 2: Convert time to cron expression
 
-Use your reasoning to convert natural language to a 5-field cron expression (minute hour day month weekday). The cron runs in **system timezone** (check with `date +%Z`). Convert the user's local time (from config timezone) to system timezone if they differ.
+Use your reasoning to convert natural language to a 5-field cron expression (minute hour day month weekday). The cron runs in **system timezone** (check with `date +%Z`).
+
+**Timezone conversion:** If user timezone (from config) differs from system timezone, you MUST convert:
+1. Run `date +%Z` to get system timezone
+2. Run `TZ="<user_timezone>" date +%z` and `date +%z` to get UTC offsets for both
+3. Calculate the difference and adjust the cron hour accordingly
+4. Example: User wants 10:00 in Europe/Lisbon (UTC+1), system is UTC → cron hour = 9
+
+**If system timezone = user timezone** (most common), no conversion needed.
+
+**Ambiguous time resolution:**
+- "в 1 ночи" / "at 1am" when current time is after midnight → means tonight (same calendar date, already past → use NEXT occurrence)
+- "в 1 ночи" when current time is before midnight (e.g. 23:00) → means in ~2 hours (next calendar date at 01:00)
+- **Rule: always pick the NEXT future occurrence of the requested time.** Never schedule in the past.
+- When in doubt, confirm with user: "Имеешь в виду через ~2 часа, в 1:00 ночи?"
 
 Common conversions:
 | User says | Cron expression | Notes |
@@ -44,6 +58,8 @@ Common conversions:
 | "1 числа каждого месяца в 10:00" | `0 10 1 * *` | Recurring |
 
 For one-off reminders, use specific day/month. For recurring, use wildcards.
+
+**DST warning:** Cron uses fixed times. Recurring reminders may shift by 1 hour during DST transitions (spring/fall). If this happens, recreate the reminder with the corrected time.
 
 ### Step 3: Compose the prompt
 
