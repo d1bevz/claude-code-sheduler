@@ -82,7 +82,7 @@ read_bot_token() {
 log "EXEC: model=$MODEL workspace=$WORKSPACE"
 START_MS=$(date +%s%3N)
 
-RESULT=$(cd "$WORKSPACE" && claude -p "$PROMPT" --model "$MODEL" --dangerously-skip-permissions 2>/dev/null) || {
+RESULT=$(cd "$WORKSPACE" && claude -p "$PROMPT" --model "$MODEL" --dangerously-skip-permissions --setting-sources "" 2>/dev/null) || {
     ELAPSED=$(( $(date +%s%3N) - START_MS ))
     log "ERROR: claude -p failed (exit $?)"
     python3 "$SCRIPT_DIR/db.py" log "$TASK_ID" --status error --output "claude -p failed" --duration "$ELAPSED"
